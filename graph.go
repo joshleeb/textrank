@@ -1,12 +1,9 @@
-package main
+package textrank
 
 import (
 	"math/rand"
 	"time"
 )
-
-// graph is a graph of nodes.
-type graph []*node
 
 // node is a node of the graph.
 type node struct {
@@ -14,6 +11,9 @@ type node struct {
 	Links []*node
 	Score float64
 }
+
+// graph is a graph of nodes.
+type graph []*node
 
 // Len returns the number of nodes in the graph.
 func (g graph) Len() int {
@@ -39,7 +39,7 @@ func newGraph(sentences []string) *graph {
 
 	// Add nodes.
 	for i, sentence := range sentences {
-		g.AddNode(sentence)
+		g.addNode(sentence)
 		seen[i] = make(map[int]bool)
 	}
 
@@ -53,7 +53,7 @@ func newGraph(sentences []string) *graph {
 			seen[b][a] = true
 
 			similar := similarity(nodeA.Data, nodeB.Data)
-			if similar > 0 {
+			if similar > 1 {
 				nodeA.Links = append(nodeA.Links, nodeB)
 				nodeB.Links = append(nodeB.Links, nodeA)
 			}
@@ -62,9 +62,9 @@ func newGraph(sentences []string) *graph {
 	return g
 }
 
-// AddNode adds a node to the graph, giving it a random score in the range
+// addNode adds a node to the graph, giving it a random score in the range
 // [0.0, 1.0).
-func (g *graph) AddNode(data string) {
+func (g *graph) addNode(data string) {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	*g = append(*g, &node{
 		Data:  data,
