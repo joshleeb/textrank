@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/neurosnap/sentences"
@@ -17,7 +18,18 @@ func main() {
 
 	sentences := tokenize(text)
 	graph := newGraph(sentences)
-	fmt.Println(len(*graph))
+
+	// Iterating 5 times was chosen based on the convergence curves in Figure 1
+	// of "TextRank: Bringing Order into Texts" by Rada Mihalcea and Paul Tarau,
+	// 2004 - https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf
+	for _, node := range *graph {
+		node.Score = scoreNode(node, 5)
+	}
+
+	sort.Sort(sort.Reverse(graph))
+	for _, node := range (*graph)[:4] {
+		fmt.Println(node.Data + "\n")
+	}
 }
 
 // tokenize tokenises the text into sentences.

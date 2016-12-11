@@ -1,17 +1,34 @@
 package main
 
+import (
+	"math/rand"
+	"time"
+)
+
 // graph is a graph of nodes.
 type graph []*node
 
 // node is a node of the graph.
 type node struct {
 	Data  string
-	Links []*link
+	Links []*node
+	Score float64
 }
 
-type link struct {
-	To     *node
-	Weight float64
+// Len returns the number of nodes in the graph.
+func (g graph) Len() int {
+	return len(g)
+}
+
+// Less returns true if the `Score` in the supplied slice at index `i` is less
+// than the `Score` at index `j`.
+func (g graph) Less(i, j int) bool {
+	return g[i].Score < g[j].Score
+}
+
+// Swap swaps elements at the indexes of `i` and `j` in the provided graph.
+func (g graph) Swap(i, j int) {
+	g[i], g[j] = g[j], g[i]
 }
 
 // newGraph creates a new graph from sentences.
@@ -36,21 +53,22 @@ func newGraph(sentences []string) *graph {
 			seen[b][a] = true
 
 			similar := similarity(nodeA.Data, nodeB.Data)
-			if similar >= 1 {
-				nodeA.Links = append(nodeA.Links, &link{
-					To: nodeB, Weight: similar,
-				})
-				nodeB.Links = append(nodeB.Links, &link{
-					To: nodeA, Weight: similar,
-				})
+			if similar > 0 {
+				nodeA.Links = append(nodeA.Links, nodeB)
+				nodeB.Links = append(nodeB.Links, nodeA)
 			}
 		}
 	}
 	return g
 }
 
+// AddNode adds a node to the graph, giving it a random score in the range
+// [0.0, 1.0).
 func (g *graph) AddNode(data string) {
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	*g = append(*g, &node{
-		Data: data, Links: []*link{},
+		Data:  data,
+		Links: []*node{},
+		Score: random.Float64(),
 	})
 }
