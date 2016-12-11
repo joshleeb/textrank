@@ -11,6 +11,10 @@ import (
 
 const dampeningFactor = 0.85
 
+// minWordSentence is the minimum number of words a sentence can have to become
+// a node in the graph.
+const minWordSentence = 5
+
 // Rank ranks the sentences in the given text based on the TextRank algorithm
 // and returned a list of the ranked sentences in descending order or score.
 func Rank(text string, iterations int) []string {
@@ -70,7 +74,7 @@ func similarity(a, b string) float64 {
 	tokensA := tokenizer.Tokenize(a, false)
 	tokensB := tokenizer.Tokenize(b, false)
 
-	if len(tokensA) == 0 || len(tokensB) == 0 {
+	if len(tokensA) < minWordSentence || len(tokensB) < minWordSentence {
 		return 0
 	}
 
