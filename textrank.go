@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neurosnap/sentences"
 	"github.com/neurosnap/sentences/english"
 )
 
@@ -15,6 +14,14 @@ const dampeningFactor = 0.85
 // minWordSentence is the minimum number of words a sentence can have to become
 // a node in the graph.
 const minWordSentence = 5
+
+// tokenizeWordsReplacePunctRe is a RegExp that replaces punctuation with spaces
+// when tokenizing text into words.
+var tokenizeWordsReplacePunctRe = regexp.MustCompile(`[.,\/!&;:=\-_]`)
+
+// tokenizeWordsRemovePunctRe is a RegExp that removes punctuation when
+// tokenizing text into words.
+var tokenizeWordsRemovePunctRe = regexp.MustCompile(`[#$%\^\*{}~()\'\"]`)
 
 // Rank ranks the sentences in the given text based on the TextRank algorithm
 // and returned a list of the ranked sentences in descending order or score.
@@ -41,11 +48,11 @@ func Rank(text string, iterations int) []string {
 func TokenizeSentences(text string) []string {
 	tokenizer, _ := english.NewSentenceTokenizer(nil)
 
-	var sentences []string
+	sentences := []string{}
 	for _, token := range tokenizer.Tokenize(text) {
 		sentence := strings.TrimSpace(token.Text)
 		if sentence != "" {
-			sentences = append(sentences, sentence)
+			sentences = append(sentences, strings.TrimSuffix(sentence, "."))
 		}
 	}
 	return sentences
@@ -53,11 +60,13 @@ func TokenizeSentences(text string) []string {
 
 // TokenizeWords tokenizes the text into words.
 func TokenizeWords(text string) []string {
-	tokenizer := english.NewWordTokenizer(sentences.NewPunctStrings())
+	text = strings.ToLower(
+		tokenizeWordsReplacePunctRe.ReplaceAllString(text, " "))
+	text = strings.ToLower(
+		tokenizeWordsRemovePunctRe.ReplaceAllString(text, ""))
 
-	var words []string
-	for _, token := range tokenizer.Tokenize(text, false) {
-		word := strings.TrimSpace(token.Tok)
+	words := []string{}
+	for _, word := range strings.Split(text, " ") {
 		if word != "" {
 			words = append(words, word)
 		}
@@ -84,9 +93,6 @@ func scoreNode(n *node, iterations int) float64 {
 // similarity calculates the similarity between two sentences, normalizing for
 // sentence length.
 func similarity(a, b string) float64 {
-	punctRe := regexp.MustCompile(`[.,\/#!$%\^&\*;:{}=\-_~()]`)
-	stopwords := getStopwords()
-
 	tokensA := TokenizeWords(a)
 	tokensB := TokenizeWords(b)
 
@@ -96,7 +102,7 @@ func similarity(a, b string) float64 {
 
 	similarWords := make(map[string]bool)
 	for _, tokenA := range tokensA {
-		wordA := strings.ToLower(punctRe.ReplaceAllString(tokenA, ""))
+		wordA := strings.ToLower(tokenA)
 
 		// Ignore stopwords. Only need to check wordA because if wordA is not a
 		// stopword and wordB is a stopword, then they are not going to match.
@@ -105,8 +111,7 @@ func similarity(a, b string) float64 {
 		}
 
 		for _, tokenB := range tokensB {
-			wordB := strings.ToLower(punctRe.ReplaceAllString(tokenB, ""))
-
+			wordB := strings.ToLower(tokenB)
 			if strings.Compare(wordA, wordB) == 0 {
 				similarWords[wordA] = true
 			}
