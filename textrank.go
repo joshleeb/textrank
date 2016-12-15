@@ -2,6 +2,7 @@ package textrank
 
 import (
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -36,6 +37,20 @@ func Rank(text string, iterations int) []string {
 	return ranked
 }
 
+// tokenize tokenises the text into sentences.
+func tokenize(text string) []string {
+	tokenizer, _ := english.NewSentenceTokenizer(nil)
+
+	var sentences []string
+	for _, token := range tokenizer.Tokenize(text) {
+		sentence := strings.TrimSpace(token.Text)
+		if sentence != "" {
+			sentences = append(sentences, sentence)
+		}
+	}
+	return sentences
+}
+
 // scoreNode calculates the voting score for a given node.
 func scoreNode(n *node, iterations int) float64 {
 	if iterations == 0 {
@@ -52,23 +67,11 @@ func scoreNode(n *node, iterations int) float64 {
 	return (1 - dampeningFactor) + dampeningFactor*successiveScore
 }
 
-// tokenize tokenises the text into sentences.
-func tokenize(text string) []string {
-	tokenizer, _ := english.NewSentenceTokenizer(nil)
-
-	var sentences []string
-	for _, token := range tokenizer.Tokenize(text) {
-		sentence := strings.TrimSpace(token.Text)
-		if sentence != "" {
-			sentences = append(sentences, sentence)
-		}
-	}
-	return sentences
-}
-
 // similarity calculates the similarity between two sentences, normalizing for
 // sentence length.
 func similarity(a, b string) float64 {
+	punctRe := regexp.MustCompile(`[.,\/#!$%\^&\*;:{}=\-_~()]`)
+	stopwords := getStopwords()
 	tokenizer := english.NewWordTokenizer(sentences.NewPunctStrings())
 
 	tokensA := tokenizer.Tokenize(a, false)
@@ -80,10 +83,16 @@ func similarity(a, b string) float64 {
 
 	similarWords := make(map[string]bool)
 	for _, tokenA := range tokensA {
-		wordA := strings.TrimSuffix(strings.ToLower(tokenA.Tok), ",")
+		wordA := strings.ToLower(punctRe.ReplaceAllString(tokenA.Tok, ""))
+
+		// Ignore stopwords. Only need to check wordA because if wordA is not a
+		// stopword and wordB is a stopword, then they are not going to match.
+		if _, ok := stopwords[wordA]; ok {
+			continue
+		}
 
 		for _, tokenB := range tokensB {
-			wordB := strings.TrimSuffix(strings.ToLower(tokenB.Tok), ",")
+			wordB := strings.ToLower(punctRe.ReplaceAllString(tokenB.Tok, ""))
 
 			if strings.Compare(wordA, wordB) == 0 {
 				similarWords[wordA] = true
