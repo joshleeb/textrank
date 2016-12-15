@@ -19,7 +19,7 @@ const minWordSentence = 5
 // Rank ranks the sentences in the given text based on the TextRank algorithm
 // and returned a list of the ranked sentences in descending order or score.
 func Rank(text string, iterations int) []string {
-	sentences := tokenize(text)
+	sentences := TokenizeSentences(text)
 	graph := newGraph(sentences)
 	ranked := []string{}
 
@@ -37,8 +37,8 @@ func Rank(text string, iterations int) []string {
 	return ranked
 }
 
-// tokenize tokenises the text into sentences.
-func tokenize(text string) []string {
+// TokenizeSentences tokenises the text into sentences.
+func TokenizeSentences(text string) []string {
 	tokenizer, _ := english.NewSentenceTokenizer(nil)
 
 	var sentences []string
@@ -49,6 +49,20 @@ func tokenize(text string) []string {
 		}
 	}
 	return sentences
+}
+
+// TokenizeWords tokenizes the text into words.
+func TokenizeWords(text string) []string {
+	tokenizer := english.NewWordTokenizer(sentences.NewPunctStrings())
+
+	var words []string
+	for _, token := range tokenizer.Tokenize(text, false) {
+		word := strings.TrimSpace(token.Tok)
+		if word != "" {
+			words = append(words, word)
+		}
+	}
+	return words
 }
 
 // scoreNode calculates the voting score for a given node.
@@ -72,10 +86,9 @@ func scoreNode(n *node, iterations int) float64 {
 func similarity(a, b string) float64 {
 	punctRe := regexp.MustCompile(`[.,\/#!$%\^&\*;:{}=\-_~()]`)
 	stopwords := getStopwords()
-	tokenizer := english.NewWordTokenizer(sentences.NewPunctStrings())
 
-	tokensA := tokenizer.Tokenize(a, false)
-	tokensB := tokenizer.Tokenize(b, false)
+	tokensA := TokenizeWords(a)
+	tokensB := TokenizeWords(b)
 
 	if len(tokensA) < minWordSentence || len(tokensB) < minWordSentence {
 		return 0
@@ -83,7 +96,7 @@ func similarity(a, b string) float64 {
 
 	similarWords := make(map[string]bool)
 	for _, tokenA := range tokensA {
-		wordA := strings.ToLower(punctRe.ReplaceAllString(tokenA.Tok, ""))
+		wordA := strings.ToLower(punctRe.ReplaceAllString(tokenA, ""))
 
 		// Ignore stopwords. Only need to check wordA because if wordA is not a
 		// stopword and wordB is a stopword, then they are not going to match.
@@ -92,7 +105,7 @@ func similarity(a, b string) float64 {
 		}
 
 		for _, tokenB := range tokensB {
-			wordB := strings.ToLower(punctRe.ReplaceAllString(tokenB.Tok, ""))
+			wordB := strings.ToLower(punctRe.ReplaceAllString(tokenB, ""))
 
 			if strings.Compare(wordA, wordB) == 0 {
 				similarWords[wordA] = true
