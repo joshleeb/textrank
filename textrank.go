@@ -48,12 +48,23 @@ func Rank(text string, iterations int) []string {
 func TokenizeSentences(text string) []string {
 	tokenizer, _ := english.NewSentenceTokenizer(nil)
 
-	sentences := []string{}
+	rawSentences := []string{}
 	for _, token := range tokenizer.Tokenize(text) {
-		sentence := strings.TrimSpace(token.Text)
-		if sentence != "" {
-			sentences = append(sentences, strings.TrimSuffix(sentence, "."))
+		token := strings.TrimSpace(token.Text)
+		if token != "" {
+			rawSentences = append(rawSentences, strings.TrimSuffix(token, "."))
 		}
+	}
+
+	// Often text will contain a sentence that finished with a period followed
+	// by a sentence startin with a capital letter, and zero or more spaces in
+	// between.  Since the order of these sentences doesn't matter for TextRank
+	// we can go through the sentences again and split any that match this
+	// format.
+	re := regexp.MustCompile("\\.\\s*[A-Z]")
+	sentences := []string{}
+	for _, token := range rawSentences {
+		sentences = append(sentences, splitByRegexp(token, re)...)
 	}
 	return sentences
 }
@@ -126,4 +137,17 @@ func similarity(a, b string) float64 {
 	}
 
 	return numSimilarWords / math.Log(numWordsMult)
+}
+
+// splitByRegexp splits a specified string by the regex provided.
+func splitByRegexp(text string, re *regexp.Regexp) []string {
+	indexes := re.FindAllStringIndex(text, -1)
+	prevStart := 0
+	results := make([]string, len(indexes)+1)
+	for i, element := range indexes {
+		results[i] = text[prevStart:element[0]]
+		prevStart = element[1] - 1
+	}
+	results[len(indexes)] = text[prevStart:len(text)]
+	return results
 }

@@ -1,6 +1,9 @@
 package textrank
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func TestTokenizeSentences(t *testing.T) {
 	cases := map[string]struct {
@@ -12,6 +15,10 @@ func TestTokenizeSentences(t *testing.T) {
 		"single":    {"word", []string{"word"}},
 		"spaces":    {" ", []string{}},
 		"untrimmed": {"one.    ", []string{"one"}},
+		"inconsistent": {
+			"abc.Def. Ghi. Jkl.mno",
+			[]string{"abc", "Def", "Ghi", "Jkl.mno"},
+		},
 		"double": {
 			"a sentence. Now a second",
 			[]string{"a sentence", "Now a second"},
@@ -24,6 +31,12 @@ func TestTokenizeSentences(t *testing.T) {
 
 	for k, tc := range cases {
 		tokens := TokenizeSentences(tc.Text)
+
+		// Sort the slices to ensure comparisons are correct. This is fine as
+		// order of sentences doesn't matter for the TextRank algorithm.
+		sort.Strings(tokens)
+		sort.Strings(tc.Sentences)
+
 		if !eqStringSlices(tokens, tc.Sentences) {
 			t.Errorf("%s: sentences = %#v, expected %#v", k, tokens, tc.Sentences)
 		}
