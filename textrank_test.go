@@ -15,10 +15,6 @@ func TestTokenizeSentences(t *testing.T) {
 		"single":    {"word", []string{"word"}},
 		"spaces":    {" ", []string{}},
 		"untrimmed": {"one.    ", []string{"one"}},
-		"inconsistent": {
-			"abc.Def. Ghi. Jkl.mno",
-			[]string{"abc", "Def", "Ghi", "Jkl.mno"},
-		},
 		"double": {
 			"a sentence. Now a second",
 			[]string{"a sentence", "Now a second"},
