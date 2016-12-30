@@ -86,33 +86,20 @@ func RankWords(text string, iterations int) []string {
 func TokenizeSentences(text string) []string {
 	tokenizer, _ := english.NewSentenceTokenizer(nil)
 
-	rawSentences := []string{}
+	sentences := []string{}
 	for _, token := range tokenizer.Tokenize(text) {
 		token := strings.TrimSpace(token.Text)
 		if token != "" {
-			rawSentences = append(rawSentences, strings.TrimSuffix(token, "."))
+			sentences = append(sentences, strings.TrimSuffix(token, "."))
 		}
-	}
-
-	// Often text will contain a sentence that finished with a period followed
-	// by a sentence startin with a capital letter, and zero or more spaces in
-	// between.  Since the order of these sentences doesn't matter for TextRank
-	// we can go through the sentences again and split any that match this
-	// format.
-	re := regexp.MustCompile("\\.\\s*[A-Z]")
-	sentences := []string{}
-	for _, token := range rawSentences {
-		sentences = append(sentences, splitByRegexp(token, re)...)
 	}
 	return sentences
 }
 
 // TokenizeWords tokenizes the text into words.
 func TokenizeWords(text string) []string {
-	text = strings.ToLower(
-		tokenizeWordsReplacePunctRe.ReplaceAllString(text, " "))
-	text = strings.ToLower(
-		tokenizeWordsRemovePunctRe.ReplaceAllString(text, ""))
+	text = strings.ToLower(tokenizeWordsReplacePunctRe.ReplaceAllString(text, " "))
+	text = strings.ToLower(tokenizeWordsRemovePunctRe.ReplaceAllString(text, ""))
 
 	words := []string{}
 	for _, word := range strings.Split(text, " ") {
@@ -172,17 +159,4 @@ func similarity(a, b string) float64 {
 	}
 
 	return numSimilarWords / math.Log(numWordsMult)
-}
-
-// splitByRegexp splits a specified string by the regex provided.
-func splitByRegexp(text string, re *regexp.Regexp) []string {
-	indexes := re.FindAllStringIndex(text, -1)
-	prevStart := 0
-	results := make([]string, len(indexes)+1)
-	for i, element := range indexes {
-		results[i] = text[prevStart:element[0]]
-		prevStart = element[1] - 1
-	}
-	results[len(indexes)] = text[prevStart:len(text)]
-	return results
 }
