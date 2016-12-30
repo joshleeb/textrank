@@ -9,7 +9,13 @@ import (
 	"github.com/neurosnap/sentences/english"
 )
 
+// dampeningFactor is used when scoring nodes.
+// It should be in the range (0.0, 1.0].
 const dampeningFactor = 0.85
+
+// lexicalCoOccurenceFactor is used when linking nodes containing words.
+// It should be in the range [2, 10].
+const lexicalCoOccurenceFactor = 2
 
 // minWordSentence is the minimum number of words a sentence can have to become
 // a node in the graph.
@@ -21,16 +27,48 @@ var tokenizeWordsReplacePunctRe = regexp.MustCompile(`[.,\/!&;:=\-_]`)
 
 // tokenizeWordsRemovePunctRe is a RegExp that removes punctuation when
 // tokenizing text into words.
-var tokenizeWordsRemovePunctRe = regexp.MustCompile(`[#$%\^\*{}~()\'\"]`)
+var tokenizeWordsRemovePunctRe = regexp.MustCompile(`[#$%\^\*{}~()\?\'\"]`)
 
-// Rank ranks the sentences in the given text based on the TextRank algorithm
-// and returned a list of the ranked sentences in descending order or score.
-func Rank(text string, iterations int) []string {
+// RankSentences ranks the sentences in the given text based on the TextRank
+// algorithm and returned a list of the ranked sentences in descending order or
+// score.
+func RankSentences(text string, iterations int) []string {
 	sentences := TokenizeSentences(text)
-	graph := newGraph(sentences)
+	graph := newSentenceGraph(sentences)
 	ranked := []string{}
 
 	// Iterating 5 times was chosen based on the convergence curves in Figure 1
+	// of "TextRank: Bringing Order into Texts" by Rada Mihalcea and Paul Tarau,
+	// 2004 - https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf
+	for _, node := range *graph {
+		node.Score = scoreNode(node, iterations)
+	}
+
+	sort.Sort(sort.Reverse(graph))
+	for _, node := range *graph {
+		ranked = append(ranked, node.Data)
+	}
+	return ranked
+}
+
+// RankWords ranks the rods in the given text based on the TextRank algorithm
+// and returned a list of the ranked words in descending order or score.
+func RankWords(text string, iterations int) []string {
+	words := TokenizeWords(text)
+
+	// Remove stopwords.
+	cleanWords := []string{}
+	for _, word := range words {
+		if _, ok := stopwords[word]; ok {
+			continue
+		}
+		cleanWords = append(cleanWords, word)
+	}
+
+	graph := newWordGraph(cleanWords)
+	ranked := []string{}
+
+	// Iterating 30 times was chosen based on the convergence curves in Figure 1
 	// of "TextRank: Bringing Order into Texts" by Rada Mihalcea and Paul Tarau,
 	// 2004 - https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf
 	for _, node := range *graph {
@@ -93,9 +131,6 @@ func scoreNode(n *node, iterations int) float64 {
 
 	var successiveScore float64
 	for _, linked := range n.Links {
-		if len(n.Links) == 0 {
-			continue
-		}
 		successiveScore += scoreNode(linked, iterations-1)
 	}
 	return (1 - dampeningFactor) + dampeningFactor*successiveScore
