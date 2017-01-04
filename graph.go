@@ -1,113 +1,76 @@
 package textrank
 
+import "sort"
+
+// nodeInitialScore is the initial score of the node.
 const nodeInitialScore = 1
 
-// node is a node of the graph.
+// textgraph is a textrank graph.
+type textgraph []*node
+
+// node is a node in the textrank graph.
 type node struct {
-	Data  string
-	Links []*node
+	Text  string
+	Edges []*node
 	Score float64
 }
 
-// graph is a graph of nodes.
-type graph []*node
-
-// Len returns the number of nodes in the graph.
-func (g graph) Len() int {
-	return len(g)
-}
-
-// Less returns true if the `Score` in the supplied slice at index `i` is less
-// than the `Score` at index `j`.
-func (g graph) Less(i, j int) bool {
-	return g[i].Score < g[j].Score
-}
-
-// Swap swaps elements at the indexes of `i` and `j` in the provided graph.
-func (g graph) Swap(i, j int) {
-	g[i], g[j] = g[j], g[i]
-}
-
-// newSentenceGraph creates a new graph from sentences. For a graph of
-// sentences, the order of the `sentences` array is not important.
-func newSentenceGraph(sentences []string) *graph {
-	g := &graph{}
-	seen := make(map[int]map[int]bool) // to prevent computing similarity twice
-
-	// Add nodes.
-	for i, sentence := range sentences {
-		g.addNode(sentence, nodeInitialScore)
-		seen[i] = make(map[int]bool)
-	}
-
-	// Connect nodes based on similarity.
-	for a, nodeA := range *g {
-		for b, nodeB := range *g {
-			if _, ok := seen[a][b]; ok {
-				continue
-			}
-			seen[a][b] = true
-			seen[b][a] = true
-
-			similar := similarity(nodeA.Data, nodeB.Data)
-			if similar > 1 {
-				nodeA.Links = append(nodeA.Links, nodeB)
-				nodeB.Links = append(nodeB.Links, nodeA)
-			}
+// newTextGraph creates a new graph (undirected and unweighted) from provided
+// text.
+func newGraph(tokens []string) *textgraph {
+	newGraph := &textgraph{}
+	seenNodes := make(map[string]bool) // prevent duplication
+	for _, token := range tokens {
+		if _, ok := seenNodes[token]; ok {
+			continue
 		}
+		newGraph.addNode(token, nodeInitialScore)
+		seenNodes[token] = true
 	}
-	return g
-}
-
-// newWordGraph creates a new graph from words. For a graph of words, the order
-// of the `words` array are important.
-func newWordGraph(words []string) *graph {
-	g := &graph{}
-
-	// Connect nodes based on co-occurrence.
-	for i := 0; i <= len(words)-lexicalCoOccurenceFactor; i++ {
-		cooccurring := words[i : i+lexicalCoOccurenceFactor]
-		for _, wordA := range cooccurring {
-			nodeA := g.getNode(wordA)
-			if nodeA == nil {
-				nodeA = g.addNode(wordA, nodeInitialScore)
-			}
-
-			for _, wordB := range cooccurring {
-				nodeB := g.getNode(wordB)
-				if nodeB == nil {
-					nodeB = g.addNode(wordB, nodeInitialScore)
-				}
-
-				// We don't want nodes to be reflexive.
-				if wordA == wordB {
-					continue
-				}
-				nodeA.Links = append(nodeA.Links, nodeB)
-			}
-		}
-	}
-	return g
+	return newGraph
 }
 
 // addNode adds a node to the graph, giving it a random score in the range
 // [0.0, 1.0).
-func (g *graph) addNode(data string, score float64) *node {
-	newNode := &node{
-		Data:  data,
-		Links: []*node{},
-		Score: score,
-	}
-	*g = append(*g, newNode)
+func (tg *textgraph) addNode(text string, initialScore float64) *node {
+	newNode := &node{Text: text, Edges: []*node{}, Score: initialScore}
+	*tg = append(*tg, newNode)
 	return newNode
 }
 
-// getNode gets a node from a graph that has the specified data.
-func (g *graph) getNode(data string) *node {
-	for _, n := range *g {
-		if n.Data == data {
-			return n
+// getNode gets a node from the graph and `nil` if it doesn't exist.
+func (tg *textgraph) getNode(text string) *node {
+	for _, node := range *tg {
+		if node.Text == text {
+			return node
 		}
 	}
 	return nil
+}
+
+// normalize normalizes the graph into a list containing the string of each
+// node, ordered in descending order by the score of the node.
+func (tg *textgraph) normalize() []string {
+	ranked := []string{}
+	sort.Sort(sort.Reverse(tg))
+	for _, node := range *tg {
+		ranked = append(ranked, node.Text)
+	}
+	return ranked
+}
+
+// Len returns the number of nodes in the graph.
+func (tg textgraph) Len() int {
+	return len(tg)
+}
+
+// Less returns true if the `Score` in the supplied slice at index `i` is less
+// than the `Score` at index `j`.
+func (tg textgraph) Less(i, j int) bool {
+	return tg[i].Score < tg[j].Score
+}
+
+// Swap swaps elements at the indexes of `i` and `j` in the provided graph.
+func (tg textgraph) Swap(i, j int) {
+	tg[i], tg[j] = tg[j], tg[i]
 }
