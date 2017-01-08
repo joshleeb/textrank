@@ -35,17 +35,16 @@ func RankSentences(text string, iterations int) []string {
 
 // linkSentences links sentence nodes within a graph.
 func linkSentences(tg *textgraph) *textgraph {
-	seenEdges := make(map[string]map[string]bool) // prevent duplication
+	seenEdges := make(map[[2]string]bool) // prevent duplication
 	for _, nodeA := range *tg {
-		seenEdges[nodeA.Text] = make(map[string]bool)
-
 		for _, nodeB := range *tg {
-			_, okA := seenEdges[nodeA.Text][nodeB.Text]
-			_, okB := seenEdges[nodeB.Text][nodeA.Text]
-			if okA || okB {
+			// Disallow reflexive nodes and duplicate edges.
+			_, seen := seenEdges[[2]string{nodeA.Text, nodeB.Text}]
+			if seen || nodeA.Text == nodeB.Text {
 				continue
 			}
-			seenEdges[nodeA.Text][nodeB.Text] = true
+			seenEdges[[2]string{nodeA.Text, nodeB.Text}] = true
+			seenEdges[[2]string{nodeB.Text, nodeA.Text}] = true
 
 			// Connect nodes based on similarity.
 			if sentenceSimilarity(nodeA.Text, nodeB.Text) > 1 {
