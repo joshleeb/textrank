@@ -1,3 +1,6 @@
+# Build textrank-cli
+textrank-cli
+
 # Ignore testing texts
 *.txt
 
